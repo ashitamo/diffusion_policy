@@ -2,6 +2,9 @@
 Usage:
 Training:
 python train.py --config-name=train_diffusion_lowdim_workspace
+python train.py \
+  --config-dir=. \
+  --config-name=image_tm_diffusion_policy_cnn.yaml 
 """
 
 import sys

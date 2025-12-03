@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<robot name="mug">
+
+  <link name="base">
+
+    <!-- Visual mesh (完整漂亮模型) -->
+    <visual>
+        <origin xyz="0 -0.03 0" rpy="0 1.57 0"/>
+        <geometry>
+            <mesh filename="../meshes/Krujka-Me.obj" scale="1 1 1"/>
+        </geometry>
+    </visual>
+
+    <!-- Collision mesh（使用 convex hull 用於物理） -->
+    <collision>
+        <origin xyz="0 0 0" rpy="1.57 0 0"/>
+        <geometry>
+            <cylinder radius="0.04" length="0.07"/> 
+             <!-- <mesh filename="../meshes/Krujka-Me.obj" scale="1 1 1"/> -->
+        </geometry>
+    </collision>
+    <collision>
+        <origin xyz="0.05 0 0" rpy="0.0 0 0"/>
+        <geometry>
+            <box size="0.04 0.06 0.02"/> 
+             <!-- <mesh filename="../meshes/Krujka-Me.obj" scale="1 1 1"/> -->
+        </geometry>
+    </collision>
+
+    <!-- 小慣性，避免物體 jitter -->
+    <inertial>
+        <origin xyz="0.01 -0.02 0" rpy="0 0 0"/>
+        <mass value="0.2"/>
+        <inertia ixx="0.0001" ixy="0" ixz="0"
+                 iyy="0.0001" iyz="0"
+                 izz="0.0001"/>
+    </inertial>
+
+  </link>
+
+</robot>

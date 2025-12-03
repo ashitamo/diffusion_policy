@@ -1,0 +1,42 @@
+# config/task/tm_pick_image.yaml
+name: tm_pick_image
+
+image_shape: &image_shape [3, 96, 96]
+state_shape: &state_shape [22]
+
+shape_meta: &shape_meta
+  # acceptable types: rgb, low_dim
+  obs:
+    image:
+      shape: *image_shape
+      type: rgb
+    state:
+      shape: *state_shape
+      type: low_dim
+  action:
+    shape: [7]
+
+env_runner:
+  _target_: diffusion_policy.env_runner.tm_pick_image_runner.TMPickPlaceRunner
+  n_train: 6          # 你可以依照 demo 數量調整
+  n_train_vis: 2
+  train_start_seed: 0
+  n_test: 10
+  n_test_vis: 3
+  test_start_seed: 10000
+  max_steps: 200      # 一個 episode 最多步數（自己決定）
+  n_obs_steps: ${n_obs_steps}
+  n_action_steps: ${n_action_steps}
+  fps: 10
+  past_action: ${past_action_visible}
+  n_envs: null
+
+dataset:
+  _target_: diffusion_policy.dataset.tm_pick_image_dataset.TMPickImageDataset
+  zarr_path: data/tm_pick_demo.zarr    # 這裡要對到你 demo 存的路徑
+  horizon: ${horizon}
+  pad_before: ${eval:'${n_obs_steps}-1'}
+  pad_after: ${eval:'${n_action_steps}-1'}
+  seed: 42
+  val_ratio: 0.1
+  max_train_episodes: null
