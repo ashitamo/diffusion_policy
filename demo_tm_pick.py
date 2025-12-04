@@ -50,32 +50,15 @@ def main(output, control_hz):
     使用範例：
         python demo_tm_pick.py -o data/tm_pick_demo.zarr
     """
-
-    # ======================================================
-    # Replay Buffer
-    # ======================================================
     replay_buffer = ReplayBuffer.create_from_path(output, mode='a')
-
-    # ======================================================
-    # Environment
-    # ======================================================
     env = TMPickPlaceEnv(rate=control_hz, gui=True)
-
     rate = control_hz
     dt = 1.0 / rate
-
-    # ======================================================
-    # Joystick
-    # ======================================================
     joystick = init_joystick()
-
     print("TM Pick & Place Demo Recorder Started!")
     print("Xbox 手把控制，鍵盤：R 重置、Q 離開、Space 暫停")
     print("----------------------------------------------------------")
-
-    # ======================================================
-    # Episode Loop
-    # ======================================================
+    
     while True:
         episode = []
 
@@ -89,9 +72,6 @@ def main(output, control_hz):
         retry = False
         done = False
 
-        # --------------------------------------------------
-        # 初始化 command pose (x,y,z,r,p,y,grip)
-        # --------------------------------------------------
         ee = obs["robot_ee"]  # 通常是 (x,y,z,roll,pitch,yaw) 或類似
         cmd_x, cmd_y, cmd_z = float(ee[0]), float(ee[1]), float(ee[2])
         cmd_roll = np.pi          # 跟 GUI slider 預設一樣
@@ -108,9 +88,6 @@ def main(output, control_hz):
         while not done:
             time.sleep(dt)
 
-            # ---------------------------------------------
-            # Keyboard control: R=reset, Q=quit, Space=pause
-            # ---------------------------------------------
             keys = p.getKeyboardEvents()
 
             if ord('q') in keys:
@@ -236,7 +213,7 @@ def main(output, control_hz):
             cube_pos = obs["cube_pos"]
 
             cv2.putText(vis,
-                        f"EE: x={robot_ee[0]:.3f} y={robot_ee[1]:.3f} z={robot_ee[2]:.3f}",
+                        f"EE: x={robot_ee[0]:.3f} y={robot_ee[1]:.3f} z={robot_ee[2]:.3f} gripper={gripper_length[0]:.3f}",
                         (10, 60),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7, (0, 255, 0), 2)

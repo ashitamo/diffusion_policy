@@ -2,12 +2,12 @@
 name: tm_pick_image
 
 image_shape: &image_shape [3, 96, 96]
-state_shape: &state_shape [22]
+state_shape: &state_shape [26]
 
 shape_meta: &shape_meta
   # acceptable types: rgb, low_dim
   obs:
-    image:
+    img:
       shape: *image_shape
       type: rgb
     state:

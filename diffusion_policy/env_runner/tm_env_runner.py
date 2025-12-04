@@ -217,7 +217,7 @@ class TMPickPlaceRunner(BaseImageRunner):
 
                 # 只取出 policy / normalizer 需要的部分
                 np_obs_dict = {
-                    "image": np_obs_full["image"],
+                    "img": np_obs_full["img"],
                     "state": np_obs_full["state"],
                 }
 

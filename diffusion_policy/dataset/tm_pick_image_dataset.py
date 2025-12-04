@@ -110,7 +110,7 @@ class TMPickImageDataset(BaseImageDataset):
             **kwargs
         )
         # 圖像 normalize 用內建的 [-1,1] 範圍
-        normalizer['image'] = get_image_range_normalizer()
+        normalizer['img'] = get_image_range_normalizer()
         return normalizer
 
     def __len__(self) -> int:
@@ -127,14 +127,13 @@ class TMPickImageDataset(BaseImageDataset):
             sample['action']: (T, 7)
         """
         # image → (T, 3, H, W), [0,1]
-        image = np.moveaxis(sample['img'], -1, 1) / 255.0
-
+        image = sample['img'].astype(np.float32)
         state = sample['state'].astype(np.float32)      # (T, D_state)
         action = sample['action'].astype(np.float32)    # (T, 7)
 
         data = {
             'obs': {
-                'image': image,    # T, 3, H, W
+                'img': image,    # T, 3, H, W
                 'state': state,    # T, D_state
             },
             'action': action       # T, 7
@@ -148,19 +147,3 @@ class TMPickImageDataset(BaseImageDataset):
         return torch_data
 
 
-# 簡單測試用
-def test():
-    import os
-    zarr_path = os.path.expanduser('data/tm_pick_demo.zarr')
-    dataset = TMPickImageDataset(zarr_path, horizon=16)
-
-    print("n_episodes:", dataset.replay_buffer.n_episodes)
-    print("len(dataset):", len(dataset))
-
-    sample = dataset[0]
-    print("image shape:", sample['obs']['image'].shape)
-    print("state shape:", sample['obs']['state'].shape)
-    print("action shape:", sample['action'].shape)
-
-if __name__ == '__main__':
-    test()
