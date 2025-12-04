@@ -17,7 +17,10 @@ def test():
 
     sample = dataset[0]
     print("image shape:", sample['obs']['img'].shape)
-    print("state shape:", sample['obs']['state'].shape)
+    print("cube_pos shape:", sample['obs']['cube_pos'].shape)
+    print("pos_joints shape:", sample['obs']['pos_joints'].shape)
+    print("pos_ee shape:", sample['obs']['pos_ee'].shape)
+    print("gripper_length shape:", sample['obs']['gripper_length'].shape)
     print("action shape:", sample['action'].shape)
 
 from diffusion_policy.common.replay_buffer import ReplayBuffer
@@ -29,11 +32,11 @@ env = TMPickPlaceEnv(rate=30, gui=False)
 
 ep_id = 0
 ep = rb.get_episode(ep_id)
-demo_state0 = ep['state'][0]   # (26,)
+demo_state0 = ep['cube_pos'][0]   # (26,)
 
 env.seed(ep_id)
 obs = env.reset()
-env_state0 = obs['state']      # (26,)
+env_state0 = obs['cube_pos']      # (26,)
 
 print("demo_state0:", demo_state0)
 print("env_state0 :", env_state0)

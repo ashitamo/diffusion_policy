@@ -223,11 +223,14 @@ class TMPickPlaceRunner(BaseImageRunner):
                     "gripper_length": np_obs_full["gripper_length"],
                     "cube_pos": np_obs_full["cube_pos"],
                 }
-
+                np_obs_dict["img"] = np.moveaxis(np_obs_dict["img"], -1, 2)
                 obs_dict = dict_apply(
                     np_obs_dict,
                     lambda x: torch.from_numpy(x).to(device=device),
                 )
+                # print(obs_dict)
+                # for k, v in obs_dict.items():
+                #     print(k, v.shape)
 
                 with torch.no_grad():
                     action_dict = policy.predict_action(obs_dict)
@@ -237,6 +240,7 @@ class TMPickPlaceRunner(BaseImageRunner):
                     action_dict, lambda x: x.detach().to("cpu").numpy()
                 )
                 action = np_action_dict["action"]
+    
 
                 obs, reward, done, info = env.step(action)
 

@@ -78,11 +78,11 @@ class TMPickImageDataset(BaseImageDataset):
     def get_normalizer(self, mode='limits', **kwargs):
         data = {
             'action': self.replay_buffer['action'],   # (N, T, 7)
-            'cube_pos': self.replay_buffer['cube_pos'],      # (N, T, D_state)
-            'gripper_length': self.replay_buffer['gripper_length'],
+            'img': self.replay_buffer['img'],
             'pos_joints': self.replay_buffer['pos_joints'],
             'pos_ee': self.replay_buffer['pos_ee'],
-            'img': self.replay_buffer['img']
+            'gripper_length': self.replay_buffer['gripper_length'],
+            'cube_pos': self.replay_buffer['cube_pos'],      # (N, T, D_state)
         }
         normalizer = LinearNormalizer()
         # last_n_dims=1 表示沿著最後一維做統計
