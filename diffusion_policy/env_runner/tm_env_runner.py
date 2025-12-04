@@ -218,7 +218,10 @@ class TMPickPlaceRunner(BaseImageRunner):
                 # 只取出 policy / normalizer 需要的部分
                 np_obs_dict = {
                     "img": np_obs_full["img"],
-                    "state": np_obs_full["state"],
+                    "pos_joints": np_obs_full["pos_joints"],
+                    "pos_ee": np_obs_full["pos_ee"],
+                    "gripper_length": np_obs_full["gripper_length"],
+                    "cube_pos": np_obs_full["cube_pos"],
                 }
 
                 obs_dict = dict_apply(
@@ -234,8 +237,6 @@ class TMPickPlaceRunner(BaseImageRunner):
                     action_dict, lambda x: x.detach().to("cpu").numpy()
                 )
                 action = np_action_dict["action"]
-                print("action",action[1])
-                print("state",obs_dict["state"][1])
 
                 obs, reward, done, info = env.step(action)
 

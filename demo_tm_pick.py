@@ -4,16 +4,12 @@ import time
 import pybullet as p
 import click
 import cv2
-import pygame   # ⭐ 新增：用來讀 Xbox 手把
-
+import pygame
 from diffusion_policy.common.replay_buffer import ReplayBuffer
 from diffusion_policy.env.tm_env_pick import TMPickPlaceEnv
 
 
 def init_joystick():
-    """
-    初始化 pygame + joystick，回傳 joystick 物件或 None
-    """
     pygame.init()
     pygame.joystick.init()
     if pygame.joystick.get_count() == 0:
@@ -29,27 +25,6 @@ def init_joystick():
 @click.option('-o', '--output', default="data/tm_pick_demo.zarr", required=True)
 @click.option('-hz', '--control_hz', default=30, type=int)
 def main(output, control_hz):
-    """
-    Collect demonstration for TM5 Pick & Place task.
-    使用 Xbox 搖桿 + 鍵盤來控制手臂與夾爪。
-
-    操作方式：
-        - Xbox 手把：
-            左搖桿：X / Y 平移
-            右搖桿上下：Z 高度
-            右搖桿左右：Yaw
-            LB / RB：Roll -
-            X / Y：Pitch -
-            A：夾爪關
-            B：夾爪開
-        - 鍵盤：
-            R：重置當前 episode
-            Q：離開程式
-            Space：暫停 / 繼續
-
-    使用範例：
-        python demo_tm_pick.py -o data/tm_pick_demo.zarr
-    """
     replay_buffer = ReplayBuffer.create_from_path(output, mode='a')
     env = TMPickPlaceEnv(rate=control_hz, gui=True)
     rate = control_hz
@@ -72,7 +47,7 @@ def main(output, control_hz):
         retry = False
         done = False
 
-        ee = obs["robot_ee"]  # 通常是 (x,y,z,roll,pitch,yaw) 或類似
+        ee = obs["pos_ee"]  # 通常是 (x,y,z,roll,pitch,yaw) 或類似
         cmd_x, cmd_y, cmd_z = float(ee[0]), float(ee[1]), float(ee[2])
         cmd_roll = np.pi          # 跟 GUI slider 預設一樣
         cmd_pitch = 0.0
@@ -89,37 +64,21 @@ def main(output, control_hz):
             time.sleep(dt)
 
             keys = p.getKeyboardEvents()
-
             if ord('q') in keys:
                 print("Exiting.")
                 exit(0)
-
             if ord('r') in keys:
                 print("Retry episode.")
                 retry = True
                 break
-
             if 32 in keys:   # Space
                 pause = not pause
                 time.sleep(0.2)  # prevent bouncing
-
             if pause:
                 continue
 
-            # -----------------------------
-            # 讀 Xbox 手把 → 更新 cmd
-            # -----------------------------
-                        # -----------------------------
-            # 讀 Xbox 手把 → 更新 cmd
-            # -----------------------------
             if joystick is not None:
-                # 讓 pygame 處理 event queue（否則 axis 不會更新）
                 pygame.event.pump()
-
-                # ===== 🎮 這一段是「手把上的 reset 鍵」 =====
-                # 一般 Xbox 手把:
-                #   6: BACK / SELECT
-                #   7: START
                 back_btn = joystick.get_button(6)
                 start_btn = joystick.get_button(7)
 
@@ -182,57 +141,37 @@ def main(output, control_hz):
                 if cmd[2] <= 0.18:
                     cmd[2] = 0.18
                 action = cmd
-
             else:
-                # 沒有 joystick 就回退用 GUI sliders
                 action = env.read_gui_action()
 
-            # -----------------------------
-            # Step environment
-            # -----------------------------
             obs, reward, done, info = env.step(action)
 
-            # -----------------------------
-            # Collect data
-            # -----------------------------
-            rgb = obs["rgb"]
-            robot_q = obs["robot_q"]
-            robot_ee = obs["robot_ee"]
+            img = obs["img"]
+            pos_joints = obs["pos_joints"]
+            pos_ee = obs["pos_ee"]
             cube_pos = obs["cube_pos"]
             goal_zone = obs["goal_zone"]
             gripper_length = obs["gripper_length"]
-            state = obs["state"]
-            img = obs["img"]
-
-            # print("robot_q:", len(robot_q))
-            # print("robot_ee:", len(robot_ee))
-            # print("gripper_length:", len(gripper_length))
-            # print("cube_pos:", len(cube_pos))
-            # print("goal_zone:", len(goal_zone))
-
-            keypoint = np.zeros((9, 2), dtype=np.float32)
-            n_contacts = np.array([0], dtype=np.float32)
 
             episode.append({
-                'img': img,                          # (H,W,3)
-                'state': state.astype(np.float32),   # (16,) or (22,) 看你前面怎麼定義
-                'keypoint': keypoint,                # (9,2) dummy
-                'action': np.asarray(action, dtype=np.float32),  # (7,)
-                'n_contacts': n_contacts             # (1,)
+                'img': img.astype(np.float32),
+                'pos_joints': pos_joints.astype(np.float32),
+                'pos_ee': pos_ee.astype(np.float32),
+                'cube_pos': cube_pos.astype(np.float32),
+                'gripper_length': gripper_length.astype(np.float32),
+                'action': np.asarray(action, dtype=np.float32),
             })
 
             t += 1
-            vis = obs["rgb"]          # PyBullet 相機畫面
-
-            robot_ee = obs["robot_ee"]
+            vis = env.render()
+            robot_ee = obs["pos_ee"]
             cube_pos = obs["cube_pos"]
-
+            vis = cv2.resize(vis, None, fx=3.0, fy=3.0)
             cv2.putText(vis,
                         f"EE: x={robot_ee[0]:.3f} y={robot_ee[1]:.3f} z={robot_ee[2]:.3f} gripper={gripper_length[0]:.3f}",
                         (10, 60),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7, (0, 255, 0), 2)
-
             cv2.putText(vis,
                         f"CUBE: x={cube_pos[0]:.3f} y={cube_pos[1]:.3f} z={cube_pos[2]:.3f}",
                         (10, 90),
@@ -243,12 +182,9 @@ def main(output, control_hz):
                         (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7, (0, 200, 200), 2)
-
             cv2.imshow("TM Replay Viewer", vis)
             cv2.waitKey(1)
-        # ==================================================
-        # Save episode
-        # ==================================================
+
         if not retry and len(episode) > 1:
             data_dict = {}
             for key in episode[0].keys():

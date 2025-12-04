@@ -9,6 +9,9 @@ python train.py \
   python train.py \
   --config-dir=. \
   --config-name=lowdim_tm_diffusion_policy_cnn.yaml
+python train.py \
+  --config-dir=. \
+  --config-name=test_image_tm_diffusion_policy_cnn.yaml 
 """
 
 import sys

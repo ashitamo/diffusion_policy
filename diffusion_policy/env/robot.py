@@ -39,13 +39,14 @@ class TM5_700(object):
             jointMaxForce = info[10]
             jointMaxVelocity = info[11]
             controllable = (jointType != p.JOINT_FIXED)
-            if jointName in ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']:
+            # if jointName in ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']:
+            if controllable:
                 self.controllable_joints.append(jointID)
                 p.setJointMotorControl2(self.id, jointID, p.VELOCITY_CONTROL, targetVelocity=0, force=0)
             info = jointInfo(jointID,jointName,jointType,jointDamping,jointFriction,jointLowerLimit,
                             jointUpperLimit,jointMaxForce,jointMaxVelocity,controllable)
             self.joints.append(info)
-            print(info)
+            # print(info)
         assert len(self.controllable_joints) >= self.arm_num_dofs
         self.arm_controllable_joints = self.controllable_joints[:self.arm_num_dofs]
         self.arm_lower_limits = [info.lowerLimit for info in self.joints if info.name in tm_joints][:self.arm_num_dofs]
@@ -122,20 +123,22 @@ class TM5_700(object):
         for i, joint_id in enumerate(self.arm_controllable_joints):
             p.setJointMotorControl2(self.id, joint_id, p.POSITION_CONTROL, joint_poses[i],
                                     force=self.joints[joint_id].maxForce, maxVelocity=self.joints[joint_id].maxVelocity)
-            
+        return joint_poses
+    
     def get_joint_obs(self):
-        positions = []
-        velocities = []
+        pos_joints = []
+        vel_joints = []
         for joint_id in self.controllable_joints:
             pos, vel, _, _ = p.getJointState(self.id, joint_id)
-            positions.append(pos)
-            velocities.append(vel)
+            pos_joints.append(pos)
+            vel_joints.append(vel)
         temp = p.getLinkState(self.id, self.eef_id)
         ee_pos,ee_quat = temp[0], temp[1]
         ee_euler = p.getEulerFromQuaternion(ee_quat)
         gripper_length = self.get_gripper_length()
-        ee_pos = np.concatenate((ee_pos, ee_euler))
-        return dict(positions=positions, velocities=velocities, ee_pos=ee_pos, gripper_length=gripper_length)
+        pos_ee = np.concatenate((ee_pos, ee_euler))
+        return dict(pos_joints=pos_joints[:6], vel_joints=vel_joints[:6], pos_ee=pos_ee, gripper_length=gripper_length)
+    
 class Camera:
     def __init__(self, cam_pos, cam_tar, cam_up_vector, near, far, size, fov):
         self.width, self.height = size
@@ -274,6 +277,7 @@ class HandEyeCamera:
             shadow=0,
             flags=flags,
             renderer=p.ER_BULLET_HARDWARE_OPENGL,
+            # renderer=p.ER_TINY_RENDERER
         )
         return rgb, depth, seg
 

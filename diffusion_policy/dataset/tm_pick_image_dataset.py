@@ -28,7 +28,7 @@ class TMPickImageDataset(BaseImageDataset):
         # 只拿 img/state/action 三個 key 就好
         self.replay_buffer = ReplayBuffer.copy_from_path(
             zarr_path,
-            keys=['img', 'state', 'action']
+            keys=['img', 'cube_pos', 'gripper_length', 'pos_joints', 'pos_ee', 'action']
         )
 
         # train / val 分割
@@ -78,7 +78,11 @@ class TMPickImageDataset(BaseImageDataset):
     def get_normalizer(self, mode='limits', **kwargs):
         data = {
             'action': self.replay_buffer['action'],   # (N, T, 7)
-            'state': self.replay_buffer['state']      # (N, T, D_state)
+            'cube_pos': self.replay_buffer['cube_pos'],      # (N, T, D_state)
+            'gripper_length': self.replay_buffer['gripper_length'],
+            'pos_joints': self.replay_buffer['pos_joints'],
+            'pos_ee': self.replay_buffer['pos_ee'],
+            'img': self.replay_buffer['img']
         }
         normalizer = LinearNormalizer()
         # last_n_dims=1 表示沿著最後一維做統計
@@ -99,24 +103,23 @@ class TMPickImageDataset(BaseImageDataset):
     # sampler 回傳一段 sequence，轉成 model 用的格式
     # --------------------------------------------------
     def _sample_to_data(self, sample):
-        """
-        sample:
-            sample['img']   : (T, H, W, 3) uint8
-            sample['state'] : (T, D_state)
-            sample['action']: (T, 7)
-        """
-        # image → (T, 3, H, W), [0,1]
-        image = sample['img'].astype(np.float32)
-        state = sample['state'].astype(np.float32)      # (T, D_state)
+        # img → (T, 3, H, W), [0,1]
+        img = sample['img'].astype(np.float32)
+        img = np.moveaxis(img, -1, 1)
+        cube_pos = sample['cube_pos'].astype(np.float32)      # (T, D_state)
         action = sample['action'].astype(np.float32)    # (T, 7)
 
         data = {
             'obs': {
-                'img': image,    # T, 3, H, W
-                'state': state,    # T, D_state
+                'img': img,
+                'pos_joints': sample['pos_joints'].astype(np.float32),
+                'pos_ee': sample['pos_ee'].astype(np.float32),
+                'gripper_length': sample['gripper_length'].astype(np.float32),
+                'cube_pos': cube_pos,
             },
-            'action': action       # T, 7
+            'action': action
         }
+        # print(data['obs']['img'].shape)
         return data
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:

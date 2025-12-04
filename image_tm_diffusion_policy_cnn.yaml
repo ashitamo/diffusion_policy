@@ -58,7 +58,7 @@ policy:
   crop_shape:
   - 84
   - 84
-  diffusion_step_embed_dim: 64
+  diffusion_step_embed_dim: 256
   down_dims: [256, 512, 1024]
   eval_fixed_crop: true
   horizon: 16
@@ -83,8 +83,14 @@ policy:
       img:
         shape: [3, 96, 96]
         type: rgb
-      state:
-        shape: [26]
+      pos_joints:
+        shape: [6]
+      pos_ee:
+        shape: [6]
+      gripper_length:
+        shape: [1]
+      cube_pos:
+        shape: [6]
     action:
       shape: [7]
 shape_meta:
@@ -92,8 +98,14 @@ shape_meta:
     img:
       shape: [3, 96, 96]
       type: rgb
-    state:
-      shape: [26]
+    pos_joints:
+      shape: [6]
+    pos_ee:
+      shape: [6]
+    gripper_length:
+      shape: [1]
+    cube_pos:
+      shape: [6]
   action:
     shape: [7]
 task:
@@ -114,10 +126,10 @@ task:
     n_action_steps: 8
     n_envs: null
     n_obs_steps: 2
-    n_test: 10
+    n_test: 8
     n_test_vis: 4
     n_train: 6
-    n_train_vis: 2
+    n_train_vis: 3
     past_action: false
     test_start_seed: 10000
     train_start_seed: 0
@@ -131,8 +143,14 @@ task:
       img:
         shape: [3, 96, 96]
         type: rgb
-      state:
-        shape: [26]
+      pos_joints:
+        shape: [6]
+      pos_ee:
+        shape: [6]
+      gripper_length:
+        shape: [1]
+      cube_pos:
+        shape: [6]
     action:
       shape: [7]
 task_name: tm_pick_image

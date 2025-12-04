@@ -11,7 +11,7 @@ dataloader:
   batch_size: 1
   num_workers: 1
   persistent_workers: false
-  pin_memory: false
+  pin_memory: true
   shuffle: true
 dataset_obs_steps: 2
 ema:
@@ -83,9 +83,14 @@ policy:
       img:
         shape: [3, 96, 96]
         type: rgb
-      state:
-        shape: [26]
-        type: low_dim
+      pos_joints:
+        shape: [6]
+      pos_ee:
+        shape: [6]
+      gripper_length:
+        shape: [1]
+      cube_pos:
+        shape: [6]
     action:
       shape: [7]
 shape_meta:
@@ -93,9 +98,14 @@ shape_meta:
     img:
       shape: [3, 96, 96]
       type: rgb
-    state:
-      shape: [26]
-      type: low_dim
+    pos_joints:
+      shape: [6]
+    pos_ee:
+      shape: [6]
+    gripper_length:
+      shape: [1]
+    cube_pos:
+      shape: [6]
   action:
     shape: [7]
 task:
@@ -112,7 +122,7 @@ task:
   env_runner:
     _target_: diffusion_policy.env_runner.tm_env_runner.TMPickPlaceRunner
     fps: 10
-    max_steps: 300
+    max_steps: 200
     n_action_steps: 8
     n_envs: null
     n_obs_steps: 2
@@ -133,9 +143,14 @@ task:
       img:
         shape: [3, 96, 96]
         type: rgb
-      state:
-        shape: [26]
-        type: low_dim
+      pos_joints:
+        shape: [6]
+      pos_ee:
+        shape: [6]
+      gripper_length:
+        shape: [1]
+      cube_pos:
+        shape: [6]
     action:
       shape: [7]
 task_name: tm_pick_image
@@ -157,8 +172,8 @@ training:
   use_ema: true
   val_every: 1
 val_dataloader:
-  batch_size: 4
-  num_workers: 2
+  batch_size: 1
+  num_workers: 1
   persistent_workers: false
   pin_memory: true
   shuffle: false
