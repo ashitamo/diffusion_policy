@@ -10,14 +10,6 @@ from diffusion_policy.env.robot import TM5_700, HandEyeCamera
 
 
 class TMPickPlaceEnv(gym.Env):
-    """
-    TM5 Pick & Place 任務環境：
-    - 一顆綠色方塊會隨機生成於一定 x,y 範圍
-    - 右側地面有一塊紅色的目標區域
-    - 若方塊的中心掉入目標區域 -> done=True 並 reward=+1
-    """
-
-    # ⭐ 給 Gym / VectorEnv / VideoWrapper 用的標準欄位
     metadata = {"render.modes": ["rgb_array"], "video.frames_per_second": 10}
     reward_range = (0.0, 1.0)
 
@@ -308,9 +300,7 @@ class TMPickPlaceEnv(gym.Env):
             "img": image,   # (3,96,96) float32 [0,1]
             "state": state,   # (16,) float32
         }
-    # ----------------------------------------------------------
-    # Gym 期待的 render() 介面
-    # ----------------------------------------------------------
+
     def render(self, mode="rgb_array"):
         assert mode == "rgb_array"
         if self.render_cache is None:
@@ -322,9 +312,6 @@ class TMPickPlaceEnv(gym.Env):
         # 如果之後有開多個 client，可以在這邊做 p.disconnect()
         pass
 
-    # ----------------------------------------------------------
-    # 從 GUI slider 讀 action（手動控制）
-    # ----------------------------------------------------------
     def read_gui_action(self):
         return np.array(
             [
