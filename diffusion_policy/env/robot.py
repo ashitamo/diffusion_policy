@@ -26,6 +26,7 @@ class TM5_700(object):
             ['id','name','type','damping','friction','lowerLimit','upperLimit','maxForce','maxVelocity','controllable'])
         self.joints = []
         self.controllable_joints = []
+        tm_joints = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
         for i in range(numJoints):
             info = p.getJointInfo(self.id, i)
             jointID = info[0]
@@ -38,7 +39,7 @@ class TM5_700(object):
             jointMaxForce = info[10]
             jointMaxVelocity = info[11]
             controllable = (jointType != p.JOINT_FIXED)
-            if controllable:
+            if jointName in ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']:
                 self.controllable_joints.append(jointID)
                 p.setJointMotorControl2(self.id, jointID, p.VELOCITY_CONTROL, targetVelocity=0, force=0)
             info = jointInfo(jointID,jointName,jointType,jointDamping,jointFriction,jointLowerLimit,
@@ -47,9 +48,9 @@ class TM5_700(object):
             print(info)
         assert len(self.controllable_joints) >= self.arm_num_dofs
         self.arm_controllable_joints = self.controllable_joints[:self.arm_num_dofs]
-        self.arm_lower_limits = [info.lowerLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
-        self.arm_upper_limits = [info.upperLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
-        self.arm_joint_ranges = [info.upperLimit - info.lowerLimit for info in self.joints if info.controllable][:self.arm_num_dofs]
+        self.arm_lower_limits = [info.lowerLimit for info in self.joints if info.name in tm_joints][:self.arm_num_dofs]
+        self.arm_upper_limits = [info.upperLimit for info in self.joints if info.name in tm_joints][:self.arm_num_dofs]
+        self.arm_joint_ranges = [info.upperLimit - info.lowerLimit for info in self.joints if info.name in tm_joints][:self.arm_num_dofs]
 
     def __post_load__(self):
         # To control the gripper
