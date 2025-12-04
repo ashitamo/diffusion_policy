@@ -298,18 +298,35 @@ class TM5_700(object):
         
         p.changeDynamics(
             bodyUniqueId=self.id,
+            linkIndex=11,
+            lateralFriction=4.0,      # 接觸面摩擦係數，預設大概 0.5
+            spinningFriction=2.0,     # 旋轉摩擦，防止物體在指尖上旋轉
+            rollingFriction=2.0,
+            frictionAnchor=1          # 啟用 friction anchor，抓取比較穩
+        )
+
+        p.changeDynamics(
+            bodyUniqueId=self.id,
             linkIndex=12,
-            lateralFriction=2.0,      # 接觸面摩擦係數，預設大概 0.5
-            spinningFriction=1.0,     # 旋轉摩擦，防止物體在指尖上旋轉
-            rollingFriction=0.0001,
+            lateralFriction=4.0,      # 接觸面摩擦係數，預設大概 0.5
+            spinningFriction=2.0,     # 旋轉摩擦，防止物體在指尖上旋轉
+            rollingFriction=2.0,
             frictionAnchor=1          # 啟用 friction anchor，抓取比較穩
         )
         p.changeDynamics(
             bodyUniqueId=self.id,
             linkIndex=17,
-            lateralFriction=2.0,      # 接觸面摩擦係數，預設大概 0.5
-            spinningFriction=1.0,     # 旋轉摩擦，防止物體在指尖上旋轉
-            rollingFriction=0.0001,
+            lateralFriction=4.0,      # 接觸面摩擦係數，預設大概 0.5
+            spinningFriction=2.0,     # 旋轉摩擦，防止物體在指尖上旋轉
+            rollingFriction=2.0,
+            frictionAnchor=1          # 啟用 friction anchor，抓取比較穩
+        )
+        p.changeDynamics(
+            bodyUniqueId=self.id,
+            linkIndex=16,
+            lateralFriction=4.0,      # 接觸面摩擦係數，預設大概 0.5
+            spinningFriction=2.0,     # 旋轉摩擦，防止物體在指尖上旋轉
+            rollingFriction=2.0,
             frictionAnchor=1          # 啟用 friction anchor，抓取比較穩
         )
     def reset(self):

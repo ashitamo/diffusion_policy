@@ -109,9 +109,25 @@ def main(output, control_hz):
             # -----------------------------
             # 讀 Xbox 手把 → 更新 cmd
             # -----------------------------
+                        # -----------------------------
+            # 讀 Xbox 手把 → 更新 cmd
+            # -----------------------------
             if joystick is not None:
                 # 讓 pygame 處理 event queue（否則 axis 不會更新）
                 pygame.event.pump()
+
+                # ===== 🎮 這一段是「手把上的 reset 鍵」 =====
+                # 一般 Xbox 手把:
+                #   6: BACK / SELECT
+                #   7: START
+                back_btn = joystick.get_button(6)
+                start_btn = joystick.get_button(7)
+
+                if back_btn or start_btn:
+                    print("[Joystick] RESET episode (BACK/START pressed)")
+                    retry = True
+                    break   # 跳出 while not done，回到外層重新開始 episode
+                # ===============================================
 
                 # 常見的 Xbox 配置（不同手把可能 index 會不一樣）
                 lx = joystick.get_axis(0)   # 左搖桿 X
@@ -150,7 +166,6 @@ def main(output, control_hz):
                     cmd_grip -= grip_speed * dt   # 收夾
                 if B:
                     cmd_grip += grip_speed * dt   # 張開
-
                 # clip 到 action_space 範圍
                 low = env.action_space.low
                 high = env.action_space.high
@@ -161,13 +176,13 @@ def main(output, control_hz):
                     dtype=np.float32
                 )
                 cmd = np.clip(cmd, low, high)
-                # 回存 (避免 drift 出去)
                 (cmd_x, cmd_y, cmd_z,
                  cmd_roll, cmd_pitch, cmd_yaw,
                  cmd_grip) = cmd.tolist()
                 if cmd[2] <= 0.18:
                     cmd[2] = 0.18
                 action = cmd
+
             else:
                 # 沒有 joystick 就回退用 GUI sliders
                 action = env.read_gui_action()
@@ -189,11 +204,11 @@ def main(output, control_hz):
             state = obs["state"]
             img = obs["img"]
 
-            print("robot_q:", len(robot_q))
-            print("robot_ee:", len(robot_ee))
-            print("gripper_length:", len(gripper_length))
-            print("cube_pos:", len(cube_pos))
-            print("goal_zone:", len(goal_zone))
+            # print("robot_q:", len(robot_q))
+            # print("robot_ee:", len(robot_ee))
+            # print("gripper_length:", len(gripper_length))
+            # print("cube_pos:", len(cube_pos))
+            # print("goal_zone:", len(goal_zone))
 
             keypoint = np.zeros((9, 2), dtype=np.float32)
             n_contacts = np.array([0], dtype=np.float32)
@@ -221,6 +236,11 @@ def main(output, control_hz):
             cv2.putText(vis,
                         f"CUBE: x={cube_pos[0]:.3f} y={cube_pos[1]:.3f} z={cube_pos[2]:.3f}",
                         (10, 90),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.7, (0, 200, 200), 2)
+            cv2.putText(vis,
+                        f"reward: {reward}",
+                        (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.7, (0, 200, 200), 2)
 

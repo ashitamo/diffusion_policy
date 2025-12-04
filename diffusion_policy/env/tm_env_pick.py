@@ -56,6 +56,7 @@ class TMPickPlaceEnv(gym.Env):
             87.0,
         )
         self.gripper_link_indices = []
+        # print(self.robot.joints)
         n_joints = p.getNumJoints(self.robot.id)
         for j in range(n_joints):
             info = p.getJointInfo(self.robot.id, j)
@@ -69,11 +70,11 @@ class TMPickPlaceEnv(gym.Env):
 
         self.action_space = spaces.Box(
             low=np.array(
-                [0.15, -0.4, 0.0, 0.5 * np.pi, -np.pi, -np.pi, 0.0],
+                [0.15, -0.3, 0.0, 0.5 * np.pi, -np.pi, -np.pi, 0.0],
                 dtype=np.float32,
             ),
             high=np.array(
-                [0.60, 0.4, 0.6, 1.5 * np.pi, np.pi, np.pi, 0.085],
+                [0.60, 0.3, 0.55, 1.5 * np.pi, np.pi, np.pi, 0.085],
                 dtype=np.float32,
             ),
             dtype=np.float32,
@@ -133,7 +134,7 @@ class TMPickPlaceEnv(gym.Env):
         self.pitch_id = p.addUserDebugParameter("pitch", -np.pi, np.pi, self.robot.init_pos[4])
         self.yaw_id = p.addUserDebugParameter("yaw", -np.pi, np.pi, self.robot.init_pos[5])
 
-    def respawn_cube(self, margin=0.02):
+    def respawn_cube(self, margin=-0.02):
         """在可達工作空間內隨機生成方塊，並且保證不在 goal zone 裡。"""
 
         # 1) 先把舊方塊刪掉
@@ -177,6 +178,14 @@ class TMPickPlaceEnv(gym.Env):
             globalScaling=1.0,
         )
         p.changeVisualShape(self.cube_id, -1, rgbaColor=[0, 1, 0, 1])
+        p.changeDynamics(
+            self.cube_id,
+            -1,
+            mass=0.1,
+            lateralFriction=1.5,
+            rollingFriction=0.01,
+            spinningFriction=0.01,
+        )
 
 
     def reset(self):
