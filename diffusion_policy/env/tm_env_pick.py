@@ -63,7 +63,7 @@ class TMPickPlaceEnv(gym.Env):
             # 依照 URDF 中命名，自行調整關鍵字即可
             if ("finger" in name) or ("gripper" in name):
                 self.gripper_link_indices.append(j)
-        print("[TMPickPlaceEnv] gripper links:", self.gripper_link_indices)
+        # print("[TMPickPlaceEnv] gripper links:", self.gripper_link_indices)
         self._init_gui_sliders()
         self.cube_id = None
 
