@@ -1,37 +1,43 @@
-# diffusion_policy/dataset/tm_pick_image_dataset.py
 from typing import Dict
 import copy
 import numpy as np
 import torch
 
+from diffusion_policy.common.pytorch_util import dict_apply
 from diffusion_policy.common.replay_buffer import ReplayBuffer
 from diffusion_policy.common.sampler import (
     SequenceSampler, get_val_mask, downsample_mask
 )
 from diffusion_policy.model.common.normalizer import LinearNormalizer
-from diffusion_policy.dataset.base_dataset import BaseImageDataset
-from diffusion_policy.common.pytorch_util import dict_apply
-from diffusion_policy.common.normalize_util import get_image_range_normalizer
+from diffusion_policy.dataset.base_dataset import BaseLowdimDataset
 
 
-class TMPickImageDataset(BaseImageDataset):
+class TMPickLowdimDataset(BaseLowdimDataset):
+    """
+    TM Pick & Place 的 low-dim dataset
+    只使用：
+        - state: 你在 demo 裡存的向量 (D_state,)
+        - action: 末端目標 (7 維)
+    """
     def __init__(self,
                  zarr_path,
                  horizon=16,
                  pad_before=0,
                  pad_after=0,
+                 obs_key='state',
+                 action_key='action',
                  seed=42,
                  val_ratio=0.1,
                  max_train_episodes=None):
         super().__init__()
 
-        # 只拿 img/state/action 三個 key 就好
+        # 只載入 state / action 兩個 key
         self.replay_buffer = ReplayBuffer.copy_from_path(
             zarr_path,
-            keys=['img', 'state', 'action']
+            keys=[obs_key, action_key]
         )
 
-        # train / val 分割
+        # ------- train / val split -------
         val_mask = get_val_mask(
             n_episodes=self.replay_buffer.n_episodes,
             val_ratio=val_ratio,
@@ -44,6 +50,7 @@ class TMPickImageDataset(BaseImageDataset):
             seed=seed
         )
 
+        # ------- sampler -------
         self.sampler = SequenceSampler(
             replay_buffer=self.replay_buffer,
             sequence_length=horizon,
@@ -52,6 +59,8 @@ class TMPickImageDataset(BaseImageDataset):
             episode_mask=train_mask
         )
 
+        self.obs_key = obs_key
+        self.action_key = action_key
         self.train_mask = train_mask
         self.horizon = horizon
         self.pad_before = pad_before
@@ -73,49 +82,46 @@ class TMPickImageDataset(BaseImageDataset):
         return val_set
 
     # --------------------------------------------------
-    # normalizer：對 state / action 做線性 normalize
+    # normalizer：對 obs / action 做線性 normalize
     # --------------------------------------------------
     def get_normalizer(self, mode='limits', **kwargs):
-        data = {
-            'action': self.replay_buffer['action'],   # (N, T, 7)
-            'state': self.replay_buffer['state']      # (N, T, D_state)
-        }
+        """
+        這裡跟 PushTLowdimDataset 一樣，直接對整個 replay_buffer 的
+        obs / action 做統計。
+        """
+        data = self._sample_to_data(self.replay_buffer)
         normalizer = LinearNormalizer()
-        # last_n_dims=1 表示沿著最後一維做統計
         normalizer.fit(
             data=data,
             last_n_dims=1,
             mode=mode,
             **kwargs
         )
-        # 圖像 normalize 用內建的 [-1,1] 範圍
-        normalizer['img'] = get_image_range_normalizer()
         return normalizer
+
+    def get_all_actions(self) -> torch.Tensor:
+        return torch.from_numpy(self.replay_buffer[self.action_key])
 
     def __len__(self) -> int:
         return len(self.sampler)
 
     # --------------------------------------------------
-    # sampler 回傳一段 sequence，轉成 model 用的格式
+    # 把 sample 轉成 model 需要的格式
     # --------------------------------------------------
     def _sample_to_data(self, sample):
         """
-        sample:
-            sample['img']   : (T, H, W, 3) uint8
-            sample['state'] : (T, D_state)
-            sample['action']: (T, 7)
+        sample 可能是：
+            - sampler 給的 dict（每個 array shape: (T, D)）
+            - 或整個 replay_buffer（array shape: (N, T, D)）
+
+        我們只是簡單把 obs = state, action = action
         """
-        # image → (T, 3, H, W), [0,1]
-        image = sample['img'].astype(np.float32)
-        state = sample['state'].astype(np.float32)      # (T, D_state)
-        action = sample['action'].astype(np.float32)    # (T, 7)
+        state = sample[self.obs_key].astype(np.float32)
+        action = sample[self.action_key].astype(np.float32)
 
         data = {
-            'obs': {
-                'img': image,    # T, 3, H, W
-                'state': state,    # T, D_state
-            },
-            'action': action       # T, 7
+            'obs': state,    # shape: (T, D_state) or (N, T, D_state)
+            'action': action # shape: (T, 7) 或 (N, T, 7)
         }
         return data
 
@@ -124,5 +130,3 @@ class TMPickImageDataset(BaseImageDataset):
         data = self._sample_to_data(sample)
         torch_data = dict_apply(data, torch.from_numpy)
         return torch_data
-
-

@@ -17,20 +17,18 @@ from diffusion_policy.gym_util.video_recording_wrapper import (
     VideoRecordingWrapper,
     VideoRecorder,
 )
-from diffusion_policy.policy.base_image_policy import BaseImagePolicy
+from diffusion_policy.policy.base_lowdim_policy import BaseLowdimPolicy
 from diffusion_policy.common.pytorch_util import dict_apply
-from diffusion_policy.env_runner.base_image_runner import BaseImageRunner
+from diffusion_policy.env_runner.base_lowdim_runner import BaseLowdimRunner
 
 
-class TMPickPlaceRunner(BaseImageRunner):
+class TMPickPlaceLowdimRunner(BaseLowdimRunner):
     """
-    跟 PushTImageRunner 類似的 runner，
-    只是把環境換成 TMPickPlaceEnv。
+    Low-dim 版的 TM Pick & Place runner
 
-    - 會建 n_train + n_test 個 initial condition
-    - train/ 開頭是訓練 seed
-    - test/  開頭是測試 seed
-    - 會自動記錄 reward 與影片到 wandb
+    - obs 只用 env 的 "state" (你在 demo 裡存的那個向量)
+    - 不用 image
+    - 結構基本上仿照 PushTKeypointsRunner / 原本的 TMPickPlaceRunner
     """
 
     def __init__(
@@ -62,6 +60,7 @@ class TMPickPlaceRunner(BaseImageRunner):
         self.fps = fps
         self.crf = crf
         self.tqdm_interval_sec = tqdm_interval_sec
+        self.past_action = past_action  # 目前沒用到，可以先保留
 
         # env 每幾 step render 一次（給 VideoRecordingWrapper）
         steps_per_render = max(10 // fps, 1)
@@ -124,7 +123,7 @@ class TMPickPlaceRunner(BaseImageRunner):
                     filename.parent.mkdir(parents=True, exist_ok=True)
                     env.env.file_path = str(filename)
 
-                # 設 seed（MultiStepWrapper 會轉呼叫到內部 env 的 seed）
+                # 設 seed
                 env.seed(seed)
 
             env_seeds.append(seed)
@@ -166,9 +165,9 @@ class TMPickPlaceRunner(BaseImageRunner):
         self.env_init_fn_dills = env_init_fn_dills
 
     # -------------------------------------------------------
-    # 跑 evaluation
+    # 跑 evaluation（lowdim）
     # -------------------------------------------------------
-    def run(self, policy: BaseImagePolicy):
+    def run(self, policy: BaseLowdimPolicy):
         device = policy.device
         env = self.env
 
@@ -192,7 +191,7 @@ class TMPickPlaceRunner(BaseImageRunner):
                 this_init_fns.extend([self.env_init_fn_dills[0]] * n_diff)
             assert len(this_init_fns) == n_envs
 
-            # 讓每個 env 使用對應的 init_fn（設定 seed & 錄影）
+            # 初始化每個 env（設 seed & 錄影）
             env.call_each("run_dill_function", args_list=[(x,) for x in this_init_fns])
 
             # reset + policy reset
@@ -202,7 +201,7 @@ class TMPickPlaceRunner(BaseImageRunner):
 
             pbar = tqdm.tqdm(
                 total=self.max_steps,
-                desc=f"Eval TMPickPlaceRunner {chunk_idx+1}/{n_chunks}",
+                desc=f"Eval TMPickPlaceLowdimRunner {chunk_idx+1}/{n_chunks}",
                 leave=False,
                 mininterval=self.tqdm_interval_sec,
             )
@@ -212,13 +211,15 @@ class TMPickPlaceRunner(BaseImageRunner):
             rewards_this_chunk = []
 
             while not done and step_count < self.max_steps:
-                # 原始 env obs（MultiStepWrapper + AsyncVectorEnv 回傳）
+                # MultiStepWrapper + AsyncVectorEnv 回傳的是 dict
+                # obs["state"] shape: (n_envs, n_obs_steps, D_state)
                 np_obs_full = dict(obs)
 
-                # 只取出 policy / normalizer 需要的部分
+                np_state_seq = np_obs_full["state"].astype(np.float32)
+
+                # 這裡的 key 'obs' 要跟你的 lowdim policy / dataset 一致
                 np_obs_dict = {
-                    "img": np_obs_full["img"],
-                    "state": np_obs_full["state"],
+                    "obs": np_state_seq  # (B, n_obs_steps, D_state)
                 }
 
                 obs_dict = dict_apply(
@@ -229,18 +230,14 @@ class TMPickPlaceRunner(BaseImageRunner):
                 with torch.no_grad():
                     action_dict = policy.predict_action(obs_dict)
 
-
                 np_action_dict = dict_apply(
                     action_dict, lambda x: x.detach().to("cpu").numpy()
                 )
-                action = np_action_dict["action"]
-                print("action",action[1])
-                print("state",obs_dict["state"][1])
+                action = np_action_dict["action"]  # (B, n_action_steps, Da)
 
                 obs, reward, done, info = env.step(action)
 
-                # AsyncVectorEnv 回傳的 done / reward shape: (n_envs, n_action_steps)
-                # 我們只看 sum reward 就好
+                # reward shape: (n_envs, n_action_steps)
                 rewards_this_chunk.append(reward.copy())
 
                 done = np.all(done)
@@ -250,9 +247,9 @@ class TMPickPlaceRunner(BaseImageRunner):
 
             pbar.close()
 
-            # 儲存影片路徑 & reward（跟原本 PushTImageRunner 相同介面）
+            # 儲存影片路徑 & reward
             all_video_paths[this_global_slice] = env.render()[this_local_slice]
-            # 合併這 chunk 內的 reward（沿用 PushT 的 max over time）
+
             rewards_this_chunk = np.stack(rewards_this_chunk, axis=1)  # (n_envs, T)
             all_rewards[this_global_slice] = rewards_this_chunk[this_local_slice]
 
@@ -268,8 +265,9 @@ class TMPickPlaceRunner(BaseImageRunner):
         for i in range(n_inits):
             seed = self.env_seeds[i]
             prefix = self.env_prefixs[i]
-            # 取一整個 episode 的最大 reward（跟原始 runner 一樣）
-            max_reward = np.max( all_rewards[i] )
+
+            # 整個 episode 內的 max reward（跟 image 版一樣）
+            max_reward = np.max(all_rewards[i])
             max_rewards[prefix].append(max_reward)
             log_data[prefix + f"sim_max_reward_{seed}"] = max_reward
 

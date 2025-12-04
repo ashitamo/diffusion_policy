@@ -20,5 +20,25 @@ def test():
     print("state shape:", sample['obs']['state'].shape)
     print("action shape:", sample['action'].shape)
 
+from diffusion_policy.common.replay_buffer import ReplayBuffer
+from diffusion_policy.env.tm_env_pick import TMPickPlaceEnv
+import numpy as np
+
+rb = ReplayBuffer.create_from_path("data/tm_pick_demo.zarr", mode='r')
+env = TMPickPlaceEnv(rate=30, gui=False)
+
+ep_id = 0
+ep = rb.get_episode(ep_id)
+demo_state0 = ep['state'][0]   # (26,)
+
+env.seed(ep_id)
+obs = env.reset()
+env_state0 = obs['state']      # (26,)
+
+print("demo_state0:", demo_state0)
+print("env_state0 :", env_state0)
+print("allclose?  ", np.allclose(demo_state0, env_state0, atol=1e-4))
+
+
 if __name__ == '__main__':
     test()
