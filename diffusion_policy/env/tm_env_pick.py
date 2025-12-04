@@ -94,6 +94,7 @@ class TMPickPlaceEnv(gym.Env):
                 dtype=np.float32
             ),
         })
+        self.render_cache = None
 
     def seed(self, seed=None):
         if seed is None:
@@ -268,7 +269,7 @@ class TMPickPlaceEnv(gym.Env):
     def get_obs(self):
         rgb, depth, seg = self.camera.shot()
         rgb = rgb[:, :, :3].astype(np.uint8)
-
+        self.render_cache = rgb
         j = self.robot.get_joint_obs()
         robot_q = np.array(j["positions"], dtype=np.float32)
         robot_ee = np.array(j["ee_pos"], dtype=np.float32)[:6]
@@ -303,7 +304,9 @@ class TMPickPlaceEnv(gym.Env):
     # ----------------------------------------------------------
     def render(self, mode="rgb_array"):
         assert mode == "rgb_array"
-        rgb, _, _ = self.camera.shot()
+        if self.render_cache is None:
+            self.get_obs()
+        rgb = self.render_cache
         return rgb[:, :, :3].astype(np.uint8)
 
     def close(self):
