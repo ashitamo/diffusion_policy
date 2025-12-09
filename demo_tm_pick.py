@@ -21,6 +21,95 @@ def init_joystick():
     return js
 
 
+def read_joystick_action(
+    joystick,
+    env,
+    cmd_x, cmd_y, cmd_z,
+    cmd_roll, cmd_pitch, cmd_yaw,
+    cmd_grip,
+    dt,
+    pos_speed,
+    rot_speed,
+    grip_speed,
+):
+    """讀取 Xbox 搖桿並更新指令，回傳 (action, need_reset, updated_cmds)"""
+
+    # 讓 pygame 更新狀態
+    pygame.event.pump()
+
+    # === reset episode: BACK / START ===
+    back_btn = joystick.get_button(6)
+    start_btn = joystick.get_button(7)
+    if back_btn or start_btn:
+        print("[Joystick] RESET episode (BACK/START pressed)")
+        return None, True, (cmd_x, cmd_y, cmd_z,
+                            cmd_roll, cmd_pitch, cmd_yaw, cmd_grip)
+
+    # 軸讀取（不同手把 index 可能略有不同）
+    lx = joystick.get_axis(0)   # 左搖桿 X
+    ly = joystick.get_axis(1)   # 左搖桿 Y
+    rx = joystick.get_axis(3)   # 右搖桿 X
+    ry = joystick.get_axis(4)   # 右搖桿 Y
+
+    # 位置控制：左搖桿 xy，右搖桿 y 控 z
+    cmd_x += lx * pos_speed * dt
+    cmd_y += -ly * pos_speed * dt   # y 軸通常反向
+    cmd_z += -ry * pos_speed * dt   # push up = z+
+
+    # 旋轉控制：右搖桿 x 控 yaw
+    cmd_yaw -= rx * rot_speed * dt
+
+    # LB / RB 控 roll
+    LB = joystick.get_button(4)
+    RB = joystick.get_button(5)
+    if LB:
+        cmd_roll -= rot_speed * dt
+    if RB:
+        cmd_roll += rot_speed * dt
+
+    # X / Y 控 pitch
+    Xbtn = joystick.get_button(2)
+    Ybtn = joystick.get_button(3)
+    if Xbtn:
+        cmd_pitch -= rot_speed * dt
+    if Ybtn:
+        cmd_pitch += rot_speed * dt
+
+    # A / B 控制夾爪
+    A = joystick.get_button(0)
+    B = joystick.get_button(1)
+    if A:
+        cmd_grip -= grip_speed * dt   # 收夾
+    if B:
+        cmd_grip += grip_speed * dt   # 張開
+
+    # clip 到 action_space 範圍
+    low = env.action_space.low
+    high = env.action_space.high
+    cmd = np.array(
+        [cmd_x, cmd_y, cmd_z,
+         cmd_roll, cmd_pitch, cmd_yaw,
+         cmd_grip],
+        dtype=np.float32
+    )
+    cmd = np.clip(cmd, low, high)
+    cmd_x, cmd_y, cmd_z, cmd_roll, cmd_pitch, cmd_yaw, cmd_grip = cmd.tolist()
+
+    # 你原本的 z 底線
+    if cmd_z <= 0.18:
+        cmd_z = 0.18
+
+    action = np.array(
+        [cmd_x, cmd_y, cmd_z,
+         cmd_roll, cmd_pitch, cmd_yaw,
+         cmd_grip],
+        dtype=np.float32
+    )
+
+    return action, False, (cmd_x, cmd_y, cmd_z,
+                           cmd_roll, cmd_pitch, cmd_yaw, cmd_grip)
+
+
 @click.command()
 @click.option('-o', '--output', default="data/tm_pick_demo.zarr", required=True)
 @click.option('-hz', '--control_hz', default=30, type=int)
@@ -47,7 +136,7 @@ def main(output, control_hz):
         retry = False
         done = False
 
-        ee = obs["pos_ee"]  # 通常是 (x,y,z,roll,pitch,yaw) 或類似
+        ee = obs["pos_ee"]  # (x,y,z,roll,pitch,yaw)
         cmd_x, cmd_y, cmd_z = float(ee[0]), float(ee[1]), float(ee[2])
         cmd_roll = np.pi          # 跟 GUI slider 預設一樣
         cmd_pitch = 0.0
@@ -57,7 +146,7 @@ def main(output, control_hz):
         # 控制速度（你可以依手感調整）
         pos_speed = 0.6     # m/s 位置
         rot_speed = 1.0     # rad/s 轉動
-        grip_speed = 0.5   # m/s 夾爪
+        grip_speed = 0.5    # m/s 夾爪
 
         t = 0
         while not done:
@@ -77,70 +166,25 @@ def main(output, control_hz):
             if pause:
                 continue
 
+            # 讀 joystick → 轉成 action
             if joystick is not None:
-                pygame.event.pump()
-                back_btn = joystick.get_button(6)
-                start_btn = joystick.get_button(7)
-
-                if back_btn or start_btn:
-                    print("[Joystick] RESET episode (BACK/START pressed)")
-                    retry = True
-                    break   # 跳出 while not done，回到外層重新開始 episode
-                # ===============================================
-
-                # 常見的 Xbox 配置（不同手把可能 index 會不一樣）
-                lx = joystick.get_axis(0)   # 左搖桿 X
-                ly = joystick.get_axis(1)   # 左搖桿 Y
-                rx = joystick.get_axis(3)   # 右搖桿 X
-                ry = joystick.get_axis(4)   # 右搖桿 Y
-
-                # 位置控制：左搖桿 xy，右搖桿 y 控 z
-                cmd_x += lx * pos_speed * dt
-                cmd_y += -ly * pos_speed * dt   # y 軸通常反向
-                cmd_z += -ry * pos_speed * dt   # push up = z+
-
-                # 旋轉控制：右搖桿 x 控 yaw
-                cmd_yaw -= rx * rot_speed * dt
-
-                # LB / RB 控 roll
-                LB = joystick.get_button(4)
-                RB = joystick.get_button(5)
-                if LB:
-                    cmd_roll -= rot_speed * dt
-                if RB:
-                    cmd_roll += rot_speed * dt
-
-                # X / Y 控 pitch
-                Xbtn = joystick.get_button(2)
-                Ybtn = joystick.get_button(3)
-                if Xbtn:
-                    cmd_pitch -= rot_speed * dt
-                if Ybtn:
-                    cmd_pitch += rot_speed * dt
-
-                # A / B 控制夾爪
-                A = joystick.get_button(0)
-                B = joystick.get_button(1)
-                if A:
-                    cmd_grip -= grip_speed * dt   # 收夾
-                if B:
-                    cmd_grip += grip_speed * dt   # 張開
-                # clip 到 action_space 範圍
-                low = env.action_space.low
-                high = env.action_space.high
-                cmd = np.array(
-                    [cmd_x, cmd_y, cmd_z,
-                     cmd_roll, cmd_pitch, cmd_yaw,
-                     cmd_grip],
-                    dtype=np.float32
+                action, need_reset, (
+                    cmd_x, cmd_y, cmd_z,
+                    cmd_roll, cmd_pitch, cmd_yaw, cmd_grip
+                ) = read_joystick_action(
+                    joystick, env,
+                    cmd_x, cmd_y, cmd_z,
+                    cmd_roll, cmd_pitch, cmd_yaw,
+                    cmd_grip,
+                    dt,
+                    pos_speed,
+                    rot_speed,
+                    grip_speed,
                 )
-                cmd = np.clip(cmd, low, high)
-                (cmd_x, cmd_y, cmd_z,
-                 cmd_roll, cmd_pitch, cmd_yaw,
-                 cmd_grip) = cmd.tolist()
-                if cmd[2] <= 0.18:
-                    cmd[2] = 0.18
-                action = cmd
+
+                if need_reset:
+                    retry = True
+                    break
             else:
                 action = env.read_gui_action()
 
@@ -190,7 +234,6 @@ def main(output, control_hz):
             for key in episode[0].keys():
                 data_dict[key] = np.stack([x[key] for x in episode])
             replay_buffer.add_episode(data_dict, compressors='disk')
-
             print(f"Episode saved. seed={seed}, length={len(episode)} steps")
         else:
             print(f"Episode discarded. seed={seed}")
