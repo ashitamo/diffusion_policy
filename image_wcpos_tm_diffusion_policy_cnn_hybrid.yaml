@@ -1,4 +1,4 @@
-_target_: diffusion_policy.workspace.train_diffusion_unet_image_workspace.TrainDiffusionUnetImageWorkspace
+_target_: diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace.TrainDiffusionUnetHybridWorkspace
 checkpoint:
   save_last_ckpt: true
   save_last_snapshot: false
@@ -53,34 +53,14 @@ optimizer:
   weight_decay: 1.0e-06
 past_action_visible: false
 policy:
-  _target_: diffusion_policy.policy.diffusion_unet_image_policy.DiffusionUnetImagePolicy
+  _target_: diffusion_policy.policy.diffusion_unet_hybrid_image_policy.DiffusionUnetHybridImagePolicy
   cond_predict_scale: true
-  freeze_encoder: false
-  obs_encoder:
-    _target_: diffusion_policy.model.vision.multi_image_obs_encoder.MultiImageObsEncoder
-    shape_meta:
-      obs:
-        img:
-          shape: [3, 96, 96]
-          type: rgb
-        pos_joints:
-          shape: [6]
-        pos_ee:
-          shape: [6]
-        gripper_length:
-          shape: [1]
-      action:
-        shape: [7]
-    rgb_model:
-      _target_: diffusion_policy.model.vision.model_getter.get_resnet
-      name: resnet18
-      weights: IMAGENET1K_V1 # or r3m
-    random_crop: False
-    use_group_norm: False
-    share_rgb_model: True
-    imagenet_norm: True
+  crop_shape:
+  - 84
+  - 84
   diffusion_step_embed_dim: 256
   down_dims: [256, 512, 1024]
+  eval_fixed_crop: true
   horizon: 16
   kernel_size: 5
   n_action_steps: 8
@@ -97,6 +77,7 @@ policy:
     variance_type: fixed_small
   num_inference_steps: 100
   obs_as_global_cond: true
+  obs_encoder_group_norm: true
   shape_meta:
     obs:
       img:

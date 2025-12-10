@@ -6,12 +6,21 @@ python train.py \
   --config-dir=. \
   --config-name=image_tm_diffusion_policy_cnn.yaml 
 
-  python train.py \
-  --config-dir=. \
-  --config-name=lowdim_tm_diffusion_policy_cnn.yaml
 python train.py \
   --config-dir=. \
-  --config-name=test_image_tm_diffusion_policy_cnn.yaml 
+  --config-name=lowdim_tm_diffusion_policy_cnn.yaml
+  
+python train.py \
+  --config-dir=. \
+  --config-name=image_wcpos_tm_diffusion_policy_cnn_Hybrid.yaml
+
+python train.py \
+  --config-dir=. \
+  --config-name=image_wcpos_tm_diffusion_policy_cnn.yaml
+
+python train.py \
+  --config-dir=. \
+  --config-name=real_tm_diffusion_policy_cnn.yaml
 """
 
 import sys
