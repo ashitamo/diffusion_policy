@@ -165,7 +165,7 @@ def read_joystick_action(
 
 
 @click.command()
-@click.option('-o', '--output', default="data/tm_real_demo.zarr", required=True)
+@click.option('-o', '--output', default="data/tm_real_bottle.zarr", required=True)
 @click.option('-hz', '--control_hz', default=10, type=int)
 def main(output, control_hz):
     replay_buffer = ReplayBuffer.create_from_path(output, mode='a')

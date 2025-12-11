@@ -75,7 +75,7 @@ class TMRealEnv(Node):
             "img": spaces.Box(
                 low=0.0,
                 high=1.0,
-                shape=(96, 96, 3),
+                shape=(256, 256, 3),
                 dtype=np.float32
             ),
             "pos_ee": spaces.Box(
@@ -138,7 +138,8 @@ class TMRealEnv(Node):
             h, w, _ = img.shape
             min_dim = min(h, w)
             img = img[(h - min_dim) // 2:(h + min_dim) // 2, (w - min_dim) // 2:(w + min_dim) // 2]
-            img = cv2.resize(img, (96, 96))
+            # print('Original image shape:', img.shape)
+            img = cv2.resize(img, (256, 256))
             img = img.astype(np.float32) / 255.0
             img = np.moveaxis(img, -1, 0)  # HWC to CHW
             obs['img'] = img
