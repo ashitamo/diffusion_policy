@@ -95,10 +95,10 @@ def read_joystick_action(
     RB = joystick.get_button(5)
     vroll = 0.0
     if LB:
-        vroll = -rot_speed
+        vroll = rot_speed
         cmd_roll += vroll * dt
     if RB:
-        vroll = rot_speed
+        vroll = -rot_speed
         cmd_roll += vroll * dt
 
     # X / Y 控 pitch
